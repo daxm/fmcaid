@@ -12,12 +12,6 @@ The optional MCP adapter exposes 6 generic tools (connect, get, post, put, delet
 
 ## Installation
 
-### PyPI
-
-```bash
-pip install fmcaid
-```
-
 ### From Source
 
 ```bash
