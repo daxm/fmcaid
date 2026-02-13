@@ -2,19 +2,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy package files
-COPY fmcmcp/ ./fmcmcp/
-COPY pyproject.toml README.md LICENSE requirements.txt ./
+COPY fmcaid/ ./fmcaid/
+COPY pyproject.toml README.md LICENSE ./
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir .
 
-# Ensure pipx/uvx is in PATH
-ENV PATH="/root/.local/bin:${PATH}"
-RUN pipx ensurepath
-
-# Health check - verify Python runtime is functional
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import sys; sys.exit(0)" || exit 1
-
-CMD ["python", "-m", "fmcmcp"]
+CMD ["python", "-m", "fmcaid"]
