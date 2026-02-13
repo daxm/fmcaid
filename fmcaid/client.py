@@ -91,15 +91,28 @@ class FMCClient:
         self.refresh_count = 0
 
     def _parse_domain_uuid(self, domains_header: str) -> None:
-        """Extract domain UUID from the DOMAINS response header."""
-        for entry in domains_header.split(";"):
-            entry = entry.strip()
-            if self.domain_name in entry:
-                start = entry.find("(")
-                end = entry.find(")")
-                if start != -1 and end != -1:
-                    self.domain_uuid = entry[start + 1 : end]
+        """Extract domain UUID from the DOMAINS response header.
+
+        Handles two known formats:
+        - JSON: [{"uuid":"...", "name":"Global"}, ...]
+        - Legacy semicolon-delimited: Global(uuid); Child(uuid)
+        """
+        header = domains_header.strip()
+        if header.startswith("["):
+            import json
+            for domain in json.loads(header):
+                if domain.get("name") == self.domain_name:
+                    self.domain_uuid = domain["uuid"]
                     return
+        else:
+            for entry in header.split(";"):
+                entry = entry.strip()
+                if self.domain_name in entry:
+                    start = entry.find("(")
+                    end = entry.find(")")
+                    if start != -1 and end != -1:
+                        self.domain_uuid = entry[start + 1 : end]
+                        return
         raise Exception(f"Domain '{self.domain_name}' not found in: {domains_header}")
 
     def _refresh_auth_token(self) -> None:
