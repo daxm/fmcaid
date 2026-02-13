@@ -60,6 +60,28 @@ fmc.close()
 
 Credentials fall back to environment variables (`FMC_HOST`, `FMC_USERNAME`, `FMC_PASSWORD`, `FMC_DOMAIN`, `FMC_VERIFY_SSL`), then Cisco defaults.
 
+### Via Docker (no local Python needed)
+
+The Docker image works as a self-contained Python runtime with all dependencies pre-installed. Mount your script and pass credentials via env vars:
+
+```bash
+# Create a script (e.g. test_fmc.py)
+cat <<'EOF' > test_fmc.py
+from fmcaid import FMCClient
+
+with FMCClient() as fmc:
+    info = fmc.get_server_version()
+    print(info)
+    networks = fmc.get("object/networks")
+    print(networks)
+EOF
+
+# Run it in the container
+docker run --rm --env-file .env -v ./test_fmc.py:/app/test_fmc.py fmcaid /app/test_fmc.py
+```
+
+Note: when using env vars for credentials, `FMCClient()` with no arguments picks them up automatically.
+
 ### As an MCP Server (for Claude)
 
 #### Claude Desktop Config

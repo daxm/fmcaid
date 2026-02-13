@@ -7,4 +7,5 @@ COPY pyproject.toml README.md LICENSE ./
 
 RUN pip install --no-cache-dir .
 
-CMD ["python", "-m", "fmcaid"]
+ENTRYPOINT ["python"]
+CMD ["-m", "fmcaid"]
