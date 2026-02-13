@@ -132,44 +132,56 @@ async def call_tool(name: str, arguments: dict) -> list[TextContent]:
     return [TextContent(type="text", text=result)]
 
 
-def _handle_tool(name: str, arguments: dict) -> str:
-    """Dispatch tool calls to FMCClient (runs in thread)."""
+def _ensure_client() -> FMCClient:
+    """Lazily connect to FMC on first tool call."""
     global _client
     if _client is None:
-        return "Error: FMC client not connected. Server failed to initialize."
+        _client = FMCClient()
+        _client.connect()
+        print(
+            f"Connected to FMC at {_client.host} "
+            f"(domain: {_client.domain_name})",
+            file=sys.stderr,
+        )
+    return _client
 
+
+def _handle_tool(name: str, arguments: dict) -> str:
+    """Dispatch tool calls to FMCClient (runs in thread)."""
     try:
+        client = _ensure_client()
+
         if name == "fmc_connect":
-            info = _client.get_server_version()
+            info = client.get_server_version()
             items = info.get("items", [])
             if items:
                 sv = items[0]
                 return (
-                    f"Connected to FMC at {_client.host}\n"
-                    f"Domain: {_client.domain_name} ({_client.domain_uuid})\n"
+                    f"Connected to FMC at {client.host}\n"
+                    f"Domain: {client.domain_name} ({client.domain_uuid})\n"
                     f"Version: {sv.get('serverVersion', 'Unknown')}\n"
                     f"Build: {sv.get('buildNumber', 'Unknown')}"
                 )
-            return f"Connected to FMC at {_client.host} (no version info available)"
+            return f"Connected to FMC at {client.host} (no version info available)"
 
         elif name == "fmc_get":
-            data = _client.get(arguments["path"], params=arguments.get("params"))
+            data = client.get(arguments["path"], params=arguments.get("params"))
             return _format_result(data)
 
         elif name == "fmc_post":
-            data = _client.post(arguments["path"], json=arguments["body"])
+            data = client.post(arguments["path"], json=arguments["body"])
             return _format_result(data)
 
         elif name == "fmc_put":
-            data = _client.put(arguments["path"], json=arguments["body"])
+            data = client.put(arguments["path"], json=arguments["body"])
             return _format_result(data)
 
         elif name == "fmc_delete":
-            data = _client.delete(arguments["path"])
+            data = client.delete(arguments["path"])
             return _format_result(data)
 
         elif name == "fmc_deploy":
-            data = _client.deploy(
+            data = client.deploy(
                 device_ids=arguments.get("device_ids"),
                 force=arguments.get("force", False),
             )
@@ -186,21 +198,8 @@ def _handle_tool(name: str, arguments: dict) -> str:
 # SERVER STARTUP
 # ============================================
 async def main():
-    """Start the MCP server."""
+    """Start the MCP server. FMC connection is deferred until first tool call."""
     global _client
-
-    try:
-        _client = FMCClient()
-        _client.connect()
-        print(
-            f"Connected to FMC at {_client.host} "
-            f"(domain: {_client.domain_name})",
-            file=sys.stderr,
-        )
-    except Exception as e:
-        print(f"Failed to connect to FMC: {e}", file=sys.stderr)
-        print("Server will start but tools will return errors.", file=sys.stderr)
-        _client = None
 
     try:
         async with stdio_server() as (read_stream, write_stream):
